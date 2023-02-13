@@ -1,0 +1,101 @@
+My MATLAB code to implement the above dynamic and continuity equations:
+
+
+% Define the constants and variables
+rho = 1;
+ur = 1;
+ut = 1;
+uz = 1;
+p = 1;
+taurr = 1;
+tautt = 1;
+taurz = 1;
+tautz = 1;
+tauzz = 1;
+gr = 1;
+gt = 1;
+gz = 1;
+
+% Define the spatial discretization
+Nr = 100;
+Ntheta = 100;
+Nz = 100;
+dr = 1;
+dtheta = 1;
+dz = 1;
+r = linspace(0,Nr*dr,Nr+1);
+theta = linspace(0,Ntheta*dtheta,Ntheta+1);
+z = linspace(0,Nz*dz,Nz+1);
+[R,Theta,Z] = ndgrid(r,theta,z);
+
+% Time-stepping parameters
+dt = 0.01;
+T = 10;
+
+% Initialize the velocity fields
+u = zeros(Nr+1,Ntheta+1,Nz+1,3);
+u(:,:,:,1) = ur;
+u(:,:,:,2) = ut;
+u(:,:,:,3) = uz;
+
+% Time-stepping loop
+for t = 0:dt:T
+    
+    % Dynamic equations
+    dudt(:,:,:,1) = -(p(2:end,:,:)-p(1:end-1,:,:))./dr.*rho.*(r(2:end)+r(1:end-1))/2;
+    dudt(:,:,:,2) = -(p(:,2:end,:)-p(:,1:end-1,:))./(dtheta*R(:,2:end,:)).*rho.*(R(:,2:end)+R(:,1:end-1))/2;
+    dudt(:,:,:,3) = -(p(:,:,2:end)-p(:,:,1:end-1))./dz.*rho.*(Z(:,:,2:end)+Z(:,:,1:end-1))/2;
+    
+    du1dr = (u(2:end,:,:,1)-u(1:end-1,:,:,1))./dr;
+    du2dr = (u(2:end,:,:,2)-u(1:end-1,:,:,2))./dr.*R(2:end,:,:)./R(1:end-1,:,:);
+    du3dr = (u(2:end,:,:,3)-u(1:end-1,:,:,3))./dr;
+    
+    du1dtheta = (u(:,2:end,:,1)-u(:,1:end-1,:,1))./(dtheta*R).*R;
+    du2dtheta = (u(:,2:end,:,2)-u(:,1:end-1,:,2))./(dtheta*R);
+    du3dtheta = (u(:,2:end,:,3)-u(:,1:end-1,:,3))./(
+
+
+
+
+function [du_dr,du_dtheta,du_dz] = velocity_derivatives(r,theta,z,u_r,u_theta,u_z)
+    du_dr = (r * (u_r.*u_r + u_theta.^2./r.^2 + u_z.^2) - u_theta.^2)./r;
+    du_dtheta = (u_r .* u_theta)./r;
+    du_dz = u_r .* u_z;
+end
+
+function [dtau_dr,dtau_dtheta,dtau_dz] = stress_derivatives(r,theta,z,tau_rr,tau_theta,tau_z)
+    dtau_dr = (1/r) .* (r .* tau_rr) + tau_theta + tau_z;
+    dtau_dtheta = (1/r) .* tau_theta + tau_z;
+    dtau_dz = tau_z;
+end
+
+function dp_dr = pressure_derivative(r,p)
+    dp_dr = -p./r;
+end
+
+function [r_comp,theta_comp,z_comp] = equations_of_motion(r,theta,z,u_r,u_theta,u_z,p,tau_rr,tau_theta,tau_z,g_r,g_theta,g_z,rho)
+    [du_dr,du_dtheta,du_dz] = velocity_derivatives(r,theta,z,u_r,u_theta,u_z);
+    [dtau_dr,dtau_dtheta,dtau_dz] = stress_derivatives(r,theta,z,tau_rr,tau_theta,tau_z);
+    dp_dr = pressure_derivative(r,p);
+
+    r_comp = -rho .* (du_dr + u_r .* du_dr + u_theta ./ r .* du_dtheta - u_theta.^2 ./ r + u_z .* du_dz) - dp_dr + dtau_dr + rho .* g_r;
+    theta_comp = -rho .* (du_dtheta + u_r .* du_dtheta + u_theta ./ r .* du_dtheta + u_r .* u_theta ./ r + u_z .* du_dz) - (1/r) .* dp_dr + dtau_dtheta + rho .* g_theta;
+    z_comp = -rho .* (du_dz + u_r .* du_dz + u_theta ./ r .* du_dz + u_z .* du_dz) - dp_dr + dtau_dz + rho .* g_z;
+end
+
+
+% Continuity equation
+r_term = (1/r)*d_dr(r*u_r);
+theta_term = (1/r)*d_dtheta(u_theta);
+z_term = d_dz(u_z);
+continuity_eqn = r_term + theta_term + z_term;
+
+% Total differential equations
+diff_eqns = [d_dt(rho.*u_r) + rho.*u_r.*d_dr(u_r) + (u_theta/r).*d_dr(u_r) - (u_theta.^2/r) + u_z.*d_dr(u_r) + (1/r).*d_dr(r.*tau_rr) + (1/r).*d_dtheta(tau_rtheta) - (tau_thetatheta/r) + d_dz(tau_rz) + rho.*g_r;...
+              d_dt(rho.*u_theta) + rho.*u_r.*d_dtheta(u_theta) + (u_theta/r).*d_dtheta(u_theta) + (u_r.*u_theta/r) + u_z.*d_dtheta(u_theta) + (1/(r.^2)).*d_dr(r.^2.*tau_rtheta) + (1/r).*d_dtheta(tau_thetatheta) + d_dz(tau_thetaz) + rho.*g_theta;...
+              d_dt(rho.*u_z) + rho.*u_r.*d_dz(u_z) + (u_theta/r).*d_dz(u_z) + u_z.*d_dz(u_z) + (1/r).*d_dr(r.*tau_rz) + (1/r).*d_dtheta(tau_thetaz) + d_dz(tau_zz) + rho.*g_z;...
+              continuity_eqn];
+This code implements the dynamic equations and the continuity equation as described in the original equations. Note that d_dr, d_dtheta, and d_dz are the symbolic differentiation functions for partial derivatives with respect to r, theta, and z, respectively. Similarly, d_dt is the symbolic differentiation function for partial derivative with respect to time t.
+
+
+
